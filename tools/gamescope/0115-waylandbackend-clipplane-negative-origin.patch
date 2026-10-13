@@ -1,0 +1,50 @@
+diff --git a/src/Backends/WaylandBackend.cpp b/src/Backends/WaylandBackend.cpp
+index d74268b..9f7c4ca 100644
+--- a/src/Backends/WaylandBackend.cpp
++++ b/src/Backends/WaylandBackend.cpp
+@@ -149,22 +149,36 @@ namespace gamescope
+ 
+     inline std::optional<WaylandPlaneState> ClipPlane( const WaylandPlaneState &state )
+     {
+-        int32_t nClippedDstWidth  = std::min<int32_t>( g_nOutputWidth,  state.nDstWidth  + state.nDestX ) - state.nDestX;
+-        int32_t nClippedDstHeight = std::min<int32_t>( g_nOutputHeight, state.nDstHeight + state.nDestY ) - state.nDestY;
++        if ( state.nDstWidth <= 0 || state.nDstHeight <= 0 )
++            return std::nullopt;
++
++        // Clip to the output bounds on all four edges, advancing the source
++        // rectangle for any clipped-away destination (left/top included, not
++        // just right/bottom): a magnified layer is cursor-centred and its
++        // destination origin goes negative whenever the view extends past
++        // the left/top edge of the output.
++        int32_t nVisibleLeft   = std::max<int32_t>( state.nDestX, 0 );
++        int32_t nVisibleTop    = std::max<int32_t>( state.nDestY, 0 );
++        int32_t nVisibleRight  = std::min<int64_t>( int64_t( state.nDestX ) + state.nDstWidth,  g_nOutputWidth );
++        int32_t nVisibleBottom = std::min<int64_t>( int64_t( state.nDestY ) + state.nDstHeight, g_nOutputHeight );
+ 
+         // A plane that starts past the edge of the output clips away to nothing.
+         // Viewport source and destination sizes must be positive, so present no buffer at all.
+-        if ( nClippedDstWidth <= 0 || nClippedDstHeight <= 0 )
++        if ( nVisibleLeft >= nVisibleRight || nVisibleTop >= nVisibleBottom )
+             return std::nullopt;
+ 
+-        double flClippedSrcWidth  = state.flSrcWidth  * ( nClippedDstWidth  / double( state.nDstWidth ) );
+-        double flClippedSrcHeight = state.flSrcHeight * ( nClippedDstHeight / double( state.nDstHeight ) );
++        double flSrcPerDstX = state.flSrcWidth  / double( state.nDstWidth );
++        double flSrcPerDstY = state.flSrcHeight / double( state.nDstHeight );
+ 
+         WaylandPlaneState outState = state;
+-        outState.nDstWidth   = nClippedDstWidth;
+-        outState.nDstHeight  = nClippedDstHeight;
+-        outState.flSrcWidth  = flClippedSrcWidth;
+-        outState.flSrcHeight = flClippedSrcHeight;
++        outState.flSrcX      = state.flSrcX + ( nVisibleLeft   - state.nDestX ) * flSrcPerDstX;
++        outState.flSrcY      = state.flSrcY + ( nVisibleTop    - state.nDestY ) * flSrcPerDstY;
++        outState.flSrcWidth  = ( nVisibleRight  - nVisibleLeft ) * flSrcPerDstX;
++        outState.flSrcHeight = ( nVisibleBottom - nVisibleTop )  * flSrcPerDstY;
++        outState.nDestX      = nVisibleLeft;
++        outState.nDestY      = nVisibleTop;
++        outState.nDstWidth   = nVisibleRight  - nVisibleLeft;
++        outState.nDstHeight  = nVisibleBottom - nVisibleTop;
+         return outState;
+     }
+ 
