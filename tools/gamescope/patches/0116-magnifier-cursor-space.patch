@@ -1,5 +1,5 @@
 diff --git a/src/steamcompmgr.cpp b/src/steamcompmgr.cpp
-index 3b44f2e..bbfb8ce 100644
+index 3b44f2e..7dfaf6d 100644
 --- a/src/steamcompmgr.cpp
 +++ b/src/steamcompmgr.cpp
 @@ -2064,6 +2064,18 @@ void MouseCursor::UpdatePosition()
@@ -21,37 +21,31 @@ index 3b44f2e..bbfb8ce 100644
  	if ( root_x != m_x || root_y != m_y )
  	{
  		m_x = root_x;
-@@ -2681,6 +2693,13 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
- 	// A pre-emptively upscaled commit draws from an output sized texture, so the
- 	// window's own transform comes from the commit dimensions rather than those.
- 	int baseXOffset = 0, baseYOffset = 0;
-+	// The magnifier centres the view on the cursor. A cursor outside the frame
-+	// (stale, or arriving from another coordinate space) would push the whole
-+	// view off-frame and present nothing but the backing - keep it inside.
-+	int nCentreX = (cursor ? cursor->x() : 0);
-+	int nCentreY = (cursor ? cursor->y() : 0);
-+	nCentreX = std::max( 0, std::min( nCentreX, (int)baseWidth  - 1 ) );
-+	nCentreY = std::max( 0, std::min( nCentreY, (int)baseHeight - 1 ) );
- 
- 	if (baseWidth != (int32_t)currentOutputWidth || baseHeight != (int32_t)currentOutputHeight || offset || globalScaleRatio != 1.0f)
- 	{
-@@ -2697,8 +2716,8 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+@@ -2697,8 +2709,14 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
  
  		if ( zoomScaleRatio != 1.0 )
  		{
 -			baseXOffset += (((int)baseWidth / 2) - (cursor ? cursor->x() : 0)) * baseScaleRatio_x;
 -			baseYOffset += (((int)baseHeight / 2) - (cursor ? cursor->y() : 0)) * baseScaleRatio_y;
++			// The magnifier centres the view on the cursor. A cursor outside the
++			// frame (stale, or arriving from another coordinate space) would push
++			// the whole view off-frame and present nothing but the backing - keep
++			// the centre inside.
++			int nCentreX = std::max( 0, std::min( (cursor ? cursor->x() : 0), (int)baseWidth  - 1 ) );
++			int nCentreY = std::max( 0, std::min( (cursor ? cursor->y() : 0), (int)baseHeight - 1 ) );
 +			baseXOffset += (((int)baseWidth / 2) - nCentreX) * baseScaleRatio_x;
 +			baseYOffset += (((int)baseHeight / 2) - nCentreY) * baseScaleRatio_y;
  		}
  	}
  
-@@ -2717,8 +2736,8 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+@@ -2717,8 +2735,10 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
  
  		if ( zoomScaleRatio != 1.0 )
  		{
 -			drawXOffset += (((int)baseWidth / 2) - (cursor ? cursor->x() : 0)) * baseScaleRatio_x;
 -			drawYOffset += (((int)baseHeight / 2) - (cursor ? cursor->y() : 0)) * baseScaleRatio_y;
++			int nCentreX = std::max( 0, std::min( (cursor ? cursor->x() : 0), (int)baseWidth  - 1 ) );
++			int nCentreY = std::max( 0, std::min( (cursor ? cursor->y() : 0), (int)baseHeight - 1 ) );
 +			drawXOffset += (((int)baseWidth / 2) - nCentreX) * baseScaleRatio_x;
 +			drawYOffset += (((int)baseHeight / 2) - nCentreY) * baseScaleRatio_y;
  		}
