@@ -1,8 +1,15 @@
 diff --git a/src/steamcompmgr.cpp b/src/steamcompmgr.cpp
-index 3b44f2e..7dfaf6d 100644
+index 3b44f2e..8e7744e 100644
 --- a/src/steamcompmgr.cpp
 +++ b/src/steamcompmgr.cpp
-@@ -2064,6 +2064,18 @@ void MouseCursor::UpdatePosition()
+@@ -2058,12 +2058,27 @@ void MouseCursor::UpdatePosition()
+ 	Window root_ret, child_ret;
+ 	int root_x = m_x, root_y = m_y, win_x = 0, win_y = 0;
+ 	unsigned int mask;
+-	XQueryPointer( m_ctx->dpy, DefaultRootWindow( m_ctx->dpy ),
++	Bool bGotPointer = XQueryPointer( m_ctx->dpy, DefaultRootWindow( m_ctx->dpy ),
+ 	               &root_ret, &child_ret,
+ 	               &root_x, &root_y,
  	               &win_x, &win_y,
  	               &mask );
  
@@ -10,9 +17,12 @@ index 3b44f2e..7dfaf6d 100644
 +	// games on their own server that space is the game's resolution - potentially
 +	// much larger than the output - while everything downstream (focus, the
 +	// magnifier centre) expects output-space coordinates. Rescale before use.
++	// Only rescale freshly queried positions: on a failed query root_x still
++	// holds m_x, which is already in output space - rescaling again would
++	// compound towards the origin on every failed query.
 +	const int nXScreenW = DisplayWidth( m_ctx->dpy, DefaultScreen( m_ctx->dpy ) );
 +	const int nXScreenH = DisplayHeight( m_ctx->dpy, DefaultScreen( m_ctx->dpy ) );
-+	if ( nXScreenW > 0 && nXScreenH > 0 && ( nXScreenW != g_nOutputWidth || nXScreenH != g_nOutputHeight ) )
++	if ( bGotPointer && nXScreenW > 0 && nXScreenH > 0 && ( nXScreenW != g_nOutputWidth || nXScreenH != g_nOutputHeight ) )
 +	{
 +		root_x = int( int64_t( root_x ) * g_nOutputWidth  / nXScreenW );
 +		root_y = int( int64_t( root_y ) * g_nOutputHeight / nXScreenH );
@@ -21,7 +31,7 @@ index 3b44f2e..7dfaf6d 100644
  	if ( root_x != m_x || root_y != m_y )
  	{
  		m_x = root_x;
-@@ -2697,8 +2709,14 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+@@ -2697,8 +2712,14 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
  
  		if ( zoomScaleRatio != 1.0 )
  		{
@@ -38,7 +48,7 @@ index 3b44f2e..7dfaf6d 100644
  		}
  	}
  
-@@ -2717,8 +2735,10 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+@@ -2717,8 +2738,10 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
  
  		if ( zoomScaleRatio != 1.0 )
  		{
