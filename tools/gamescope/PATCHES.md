@@ -57,5 +57,32 @@ library list, before anything is published.
   time, as the VRR branch already did: its next frame goes out on the first refresh a capped interval
   after its last one, with half a refresh of tolerance so an on-time window keeps every Nth refresh.
 
+- `0116-waylandbackend-clipplane-negative-origin.patch` - this app: holding Home + L1 (the Steam Deck
+  screen magnifier) showed a black frame instead of a magnified view. The magnified layer is
+  cursor-centred, so its destination origin goes negative whenever the view extends past the left or
+  top edge of the output, and `ClipPlane()` only clipped overflow on the right and bottom: for a
+  negative origin `min(output, dest + size) - dest` grows and the source rectangle is never advanced.
+  The plane was then presented at a negative position - protocol-legal, but a host that drops it
+  leaves only the black backing underneath. The plane is now clipped to the output on all four edges
+  with the source rect advanced by the clipped amount (and dropped entirely when fully off-output),
+  which is byte-for-byte a no-op for a plane that is already inside the frame.
+- `0117-steamcompmgr-magnifier-cursor-space.patch` - this app: the magnifier centred its view on the
+  cursor in the wrong coordinate space. `0100` asks Xwayland for the pointer, so `cursor->x()` is in
+  the focused window's X screen space - with a game on its own server that is the game's resolution,
+  potentially larger than the output - while the zoom maths multiplies the difference by
+  `baseScaleRatio` and so expects the base layer's buffer space. Whenever the base did not already
+  fill the output the centre was mis-scaled and the magnified view landed off the sampled region,
+  dragging in the backing; with a game's larger screen it could leave the base altogether, and a
+  failed `XQueryPointer` left `root_x` at the already-converted `m_x`, compounding towards the origin
+  on every failure. The pointer is rescaled into output space only on a successful query, and the
+  centre is mapped from output into base space and clamped to the base before either offset is
+  applied; both changes are inert at zoom 1.
+- `0118-waylandbackend-zoom-cover.patch` - this app: under the magnifier the base layer's destination
+  grows to about the whole output, so its origin has to stay at 0 - whenever the pan offset dragged it
+  negative the far side of the frame had no layer over it and showed the black backing instead, which
+  is the "black area that moves with the stick" part of the symptom. When the base's destination is at
+  least the output its position is now held in `[output - dst, 0]`; a base that already fits is left
+  alone, and at zoom 1 the base never exceeds the output, so this only acts while the magnifier is up.
+
 Sixteen more of Armada's patches are DRM/lease/HDR-on-KMS work for a native display, which this
 app's Wayland-hosted gamescope never reaches, or need a newer gamescope than the runtime has.

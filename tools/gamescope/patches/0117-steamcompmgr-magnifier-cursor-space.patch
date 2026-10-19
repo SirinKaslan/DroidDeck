@@ -1,0 +1,72 @@
+diff --git a/src/steamcompmgr.cpp b/src/steamcompmgr.cpp
+index 3b44f2e..10f2038 100644
+--- a/src/steamcompmgr.cpp
++++ b/src/steamcompmgr.cpp
+@@ -2058,12 +2058,27 @@ void MouseCursor::UpdatePosition()
+ 	Window root_ret, child_ret;
+ 	int root_x = m_x, root_y = m_y, win_x = 0, win_y = 0;
+ 	unsigned int mask;
+-	XQueryPointer( m_ctx->dpy, DefaultRootWindow( m_ctx->dpy ),
++	Bool bGotPointer = XQueryPointer( m_ctx->dpy, DefaultRootWindow( m_ctx->dpy ),
+ 	               &root_ret, &child_ret,
+ 	               &root_x, &root_y,
+ 	               &win_x, &win_y,
+ 	               &mask );
+ 
++	// The X pointer lives in the Xwayland screen's own coordinate space. With the
++	// games on their own server that space is the game's resolution - potentially
++	// much larger than the output - while everything downstream (focus, the
++	// magnifier centre) expects output-space coordinates. Rescale before use.
++	// Only rescale freshly queried positions: on a failed query root_x still
++	// holds m_x, which is already in output space - rescaling again would
++	// compound towards the origin on every failed query.
++	const int nXScreenW = DisplayWidth( m_ctx->dpy, DefaultScreen( m_ctx->dpy ) );
++	const int nXScreenH = DisplayHeight( m_ctx->dpy, DefaultScreen( m_ctx->dpy ) );
++	if ( bGotPointer && nXScreenW > 0 && nXScreenH > 0 && ( nXScreenW != g_nOutputWidth || nXScreenH != g_nOutputHeight ) )
++	{
++		root_x = int( int64_t( root_x ) * g_nOutputWidth  / nXScreenW );
++		root_y = int( int64_t( root_y ) * g_nOutputHeight / nXScreenH );
++	}
++
+ 	if ( root_x != m_x || root_y != m_y )
+ 	{
+ 		m_x = root_x;
+@@ -2697,8 +2712,19 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+ 
+ 		if ( zoomScaleRatio != 1.0 )
+ 		{
+-			baseXOffset += (((int)baseWidth / 2) - (cursor ? cursor->x() : 0)) * baseScaleRatio_x;
+-			baseYOffset += (((int)baseHeight / 2) - (cursor ? cursor->y() : 0)) * baseScaleRatio_y;
++			// The cursor arrives in output space; this frame is the base layer's own
++			// buffer, so map the centre across before the view is centred on it - the
++			// two only coincide while the base already fills the output. Range matters
++			// as well: a centre outside the frame would push the whole view off-frame
++			// and present nothing but the backing.
++			const int nBaseW = std::max( (int)baseWidth,  1 );
++			const int nBaseH = std::max( (int)baseHeight, 1 );
++			int nCentreX = int( int64_t( cursor ? cursor->x() : 0 ) * nBaseW / std::max( (int)g_nOutputWidth,  1 ) );
++			int nCentreY = int( int64_t( cursor ? cursor->y() : 0 ) * nBaseH / std::max( (int)g_nOutputHeight, 1 ) );
++			nCentreX = std::max( 0, std::min( nCentreX, nBaseW - 1 ) );
++			nCentreY = std::max( 0, std::min( nCentreY, nBaseH - 1 ) );
++			baseXOffset += (((int)baseWidth / 2) - nCentreX) * baseScaleRatio_x;
++			baseYOffset += (((int)baseHeight / 2) - nCentreY) * baseScaleRatio_y;
+ 		}
+ 	}
+ 
+@@ -2717,8 +2743,14 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+ 
+ 		if ( zoomScaleRatio != 1.0 )
+ 		{
+-			drawXOffset += (((int)baseWidth / 2) - (cursor ? cursor->x() : 0)) * baseScaleRatio_x;
+-			drawYOffset += (((int)baseHeight / 2) - (cursor ? cursor->y() : 0)) * baseScaleRatio_y;
++			const int nBaseW = std::max( (int)baseWidth,  1 );
++			const int nBaseH = std::max( (int)baseHeight, 1 );
++			int nCentreX = int( int64_t( cursor ? cursor->x() : 0 ) * nBaseW / std::max( (int)g_nOutputWidth,  1 ) );
++			int nCentreY = int( int64_t( cursor ? cursor->y() : 0 ) * nBaseH / std::max( (int)g_nOutputHeight, 1 ) );
++			nCentreX = std::max( 0, std::min( nCentreX, nBaseW - 1 ) );
++			nCentreY = std::max( 0, std::min( nCentreY, nBaseH - 1 ) );
++			drawXOffset += (((int)baseWidth / 2) - nCentreX) * baseScaleRatio_x;
++			drawYOffset += (((int)baseHeight / 2) - nCentreY) * baseScaleRatio_y;
+ 		}
+ 	}
+ 
