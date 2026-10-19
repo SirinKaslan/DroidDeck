@@ -1,5 +1,5 @@
 diff --git a/src/steamcompmgr.cpp b/src/steamcompmgr.cpp
-index 8e7744e..314b3a6 100644
+index 10f2038..1d3399d 100644
 --- a/src/steamcompmgr.cpp
 +++ b/src/steamcompmgr.cpp
 @@ -2018,6 +2018,11 @@ MouseCursor::MouseCursor(xwayland_ctx_t *ctx)
@@ -24,10 +24,10 @@ index 8e7744e..314b3a6 100644
  	if ( bGotPointer && nXScreenW > 0 && nXScreenH > 0 && ( nXScreenW != g_nOutputWidth || nXScreenH != g_nOutputHeight ) )
  	{
  		root_x = int( int64_t( root_x ) * g_nOutputWidth  / nXScreenW );
-@@ -2718,6 +2726,10 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
- 			// the centre inside.
- 			int nCentreX = std::max( 0, std::min( (cursor ? cursor->x() : 0), (int)baseWidth  - 1 ) );
- 			int nCentreY = std::max( 0, std::min( (cursor ? cursor->y() : 0), (int)baseHeight - 1 ) );
+@@ -2723,6 +2731,10 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+ 			int nCentreY = int( int64_t( cursor ? cursor->y() : 0 ) * nBaseH / std::max( (int)g_nOutputHeight, 1 ) );
+ 			nCentreX = std::max( 0, std::min( nCentreX, nBaseW - 1 ) );
+ 			nCentreY = std::max( 0, std::min( nCentreY, nBaseH - 1 ) );
 +			fprintf( stderr, "[mag-dbg] got=%d raw=(%d,%d) scr=%dx%d out=%dx%d cur=(%d,%d) base=%dx%d centre=(%d,%d) z=%.3f\n",
 +			         (int)s_bMagDbgGot, s_nMagDbgRawX, s_nMagDbgRawY, s_nMagDbgScrW, s_nMagDbgScrH,
 +			         g_nOutputWidth, g_nOutputHeight, cursor ? cursor->x() : -1, cursor ? cursor->y() : -1,
