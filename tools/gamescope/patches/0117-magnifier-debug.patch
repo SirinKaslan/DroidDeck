@@ -1,0 +1,37 @@
+diff --git a/src/steamcompmgr.cpp b/src/steamcompmgr.cpp
+index 8e7744e..314b3a6 100644
+--- a/src/steamcompmgr.cpp
++++ b/src/steamcompmgr.cpp
+@@ -2018,6 +2018,11 @@ MouseCursor::MouseCursor(xwayland_ctx_t *ctx)
+ 	updateCursorFeedback( true );
+ }
+ 
++// Temporary magnifier diagnostics (remove before upstreaming).
++static int s_nMagDbgRawX = -1, s_nMagDbgRawY = -1;
++static int s_nMagDbgScrW = -1, s_nMagDbgScrH = -1;
++static bool s_bMagDbgGot = false;
++
+ void MouseCursor::UpdatePosition()
+ {
+ 	wlserver_lock();
+@@ -2073,6 +2078,9 @@ void MouseCursor::UpdatePosition()
+ 	// compound towards the origin on every failed query.
+ 	const int nXScreenW = DisplayWidth( m_ctx->dpy, DefaultScreen( m_ctx->dpy ) );
+ 	const int nXScreenH = DisplayHeight( m_ctx->dpy, DefaultScreen( m_ctx->dpy ) );
++	s_nMagDbgRawX = root_x; s_nMagDbgRawY = root_y;
++	s_nMagDbgScrW = nXScreenW; s_nMagDbgScrH = nXScreenH;
++	s_bMagDbgGot = (bool)bGotPointer;
+ 	if ( bGotPointer && nXScreenW > 0 && nXScreenH > 0 && ( nXScreenW != g_nOutputWidth || nXScreenH != g_nOutputHeight ) )
+ 	{
+ 		root_x = int( int64_t( root_x ) * g_nOutputWidth  / nXScreenW );
+@@ -2718,6 +2726,10 @@ paint_window_commit( const gamescope::Rc<commit_t> &lastCommit, steamcompmgr_win
+ 			// the centre inside.
+ 			int nCentreX = std::max( 0, std::min( (cursor ? cursor->x() : 0), (int)baseWidth  - 1 ) );
+ 			int nCentreY = std::max( 0, std::min( (cursor ? cursor->y() : 0), (int)baseHeight - 1 ) );
++			fprintf( stderr, "[mag-dbg] got=%d raw=(%d,%d) scr=%dx%d out=%dx%d cur=(%d,%d) base=%dx%d centre=(%d,%d) z=%.3f\n",
++			         (int)s_bMagDbgGot, s_nMagDbgRawX, s_nMagDbgRawY, s_nMagDbgScrW, s_nMagDbgScrH,
++			         g_nOutputWidth, g_nOutputHeight, cursor ? cursor->x() : -1, cursor ? cursor->y() : -1,
++			         (int)baseWidth, (int)baseHeight, nCentreX, nCentreY, zoomScaleRatio );
+ 			baseXOffset += (((int)baseWidth / 2) - nCentreX) * baseScaleRatio_x;
+ 			baseYOffset += (((int)baseHeight / 2) - nCentreY) * baseScaleRatio_y;
+ 		}
