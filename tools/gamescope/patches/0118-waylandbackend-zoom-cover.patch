@@ -1,0 +1,44 @@
+diff --git a/src/Backends/WaylandBackend.cpp b/src/Backends/WaylandBackend.cpp
+index c5b849e..2d8aba8 100644
+--- a/src/Backends/WaylandBackend.cpp
++++ b/src/Backends/WaylandBackend.cpp
+@@ -1685,18 +1685,35 @@ namespace gamescope
+         {
+             pWaylandFb->OnCompositorAcquire();
+ 
++            const int32_t nDstWidth  = int32_t( ceil( pLayer->tex->width()  / double( pLayer->scale.x ) ) );
++            const int32_t nDstHeight = int32_t( ceil( pLayer->tex->height() / double( pLayer->scale.y ) ) );
++            int32_t nDestX = int32_t( -pLayer->offset.x );
++            int32_t nDestY = int32_t( -pLayer->offset.y );
++
++            // The magnified base layer is bigger than the output and is the content the
++            // frame shows. Once its origin is dragged off-frame the frame falls back to
++            // the backing instead, so hold it covering the output. A layer that already
++            // covers is left alone, and at zoom 1 the base never grows past the output.
++            if ( pLayer->zpos == g_zposBase )
++            {
++                if ( nDstWidth >= int32_t( g_nOutputWidth ) )
++                    nDestX = std::max( int32_t( g_nOutputWidth ) - nDstWidth, std::min( nDestX, int32_t( 0 ) ) );
++                if ( nDstHeight >= int32_t( g_nOutputHeight ) )
++                    nDestY = std::max( int32_t( g_nOutputHeight ) - nDstHeight, std::min( nDestY, int32_t( 0 ) ) );
++            }
++
+             Present(
+                 ClipPlane( WaylandPlaneState
+                 {
+                     .pBuffer     = pBuffer,
+-                    .nDestX      = int32_t( -pLayer->offset.x ),
+-                    .nDestY      = int32_t( -pLayer->offset.y ),
++                    .nDestX      = nDestX,
++                    .nDestY      = nDestY,
+                     .flSrcX      = 0.0,
+                     .flSrcY      = 0.0,
+                     .flSrcWidth  = double( pLayer->tex->width() ),
+                     .flSrcHeight = double( pLayer->tex->height() ),
+-                    .nDstWidth   = int32_t( ceil( pLayer->tex->width() / double( pLayer->scale.x ) ) ),
+-                    .nDstHeight  = int32_t( ceil( pLayer->tex->height() / double( pLayer->scale.y ) ) ),
++                    .nDstWidth   = nDstWidth,
++                    .nDstHeight  = nDstHeight,
+                     .eColorspace = pLayer->colorspace,
+                     .pHDRMetadata = pLayer->hdr_metadata_blob,
+                     .bOpaque     = pLayer->zpos == g_zposBase,
